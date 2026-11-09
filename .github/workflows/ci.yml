@@ -1,0 +1,61 @@
+# Locked (tests/LOCKED). CI runs the locked make targets directly, so a change
+# to the root Makefile can't change what is checked.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+          cache: false
+
+      - name: Locked files are unchanged, and every change to them was declared
+        run: |
+          make -f tests/tests.mk lock-verify
+          make -f tests/tests.mk lock-audit
+
+      - name: Test harness
+        run: make -f tests/tests.mk test-harness
+
+      - name: flagwire lint and unit tests
+        run: |
+          if [ -f src/go.mod ]; then
+            test -z "$(cd src && gofmt -l .)" || { (cd src && gofmt -l .); exit 1; }
+            (cd src && go vet ./... && go test -count=1 ./...)
+          else
+            echo "no src/go.mod yet"
+          fi
+
+      # Optional: the Glas end-to-end scripts. Glas is private: set the repository
+      # variable GLAS_E2E to "true" and the secret GLAS_TOKEN to a fine-grained token
+      # with read-only access to bjaksic84/glas.
+      - name: Glas v0.1.0 checkout
+        if: vars.GLAS_E2E == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: bjaksic84/glas
+          ref: v0.1.0
+          path: .glas
+          token: ${{ secrets.GLAS_TOKEN }}
+          persist-credentials: false
+
+      - name: Acceptance score (fails only when a test that passed before fails now)
+        run: |
+          if [ -d .glas ]; then export FLAGWIRE_GLAS_DIR="$PWD/.glas"; fi
+          make -f tests/tests.mk score SUMMARY="$GITHUB_STEP_SUMMARY" SCORE_CSV=.score/score.csv

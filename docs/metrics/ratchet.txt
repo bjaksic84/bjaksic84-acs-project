@@ -1,0 +1,2 @@
+# Acceptance tests that have passed. make score keeps every one passing;
+# make score-update adds new ones. Removing a line needs a logged intervention.

@@ -1,0 +1,10 @@
+# build output
+/bin/
+# make score's working files
+/.score/
+# OpenCode session exports are copied into docs/sessions/ deliberately, not by accident
+*.local.json
+.env
+.env.*
+.DS_Store
+/.glas/
