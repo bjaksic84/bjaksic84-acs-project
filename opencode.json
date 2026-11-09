@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "lmstudio/MODEL_ID_FROM_SETUP",
+  "providers": {
+    "lmstudio": {
+      "settings": {
+        "baseURL": "{env:LM_BASE_URL}",
+        "apiKey": "{env:LM_API_TOKEN}"
+      },
+      "models": {
+        "MODEL_ID_FROM_SETUP": {
+          "name": "Qwen3.8 27B (local, LM Studio)",
+          "limit": { "context": 32768, "output": 8192 }
+        }
+      }
+    }
+  },
+  "permissions": [
+    { "action": "*", "resource": "*", "effect": "allow" },
+
+    { "action": "edit", "resource": "tests/*", "effect": "deny" },
+    { "action": "edit", "resource": "docs/SPEC.md", "effect": "deny" },
+    { "action": "edit", "resource": "docs/PLAN.md", "effect": "deny" },
+    { "action": "edit", "resource": "AGENTS.md", "effect": "deny" },
+    { "action": "edit", "resource": "opencode.json", "effect": "deny" },
+    { "action": "edit", "resource": ".github/*", "effect": "deny" },
+    { "action": "edit", "resource": ".githooks/*", "effect": "deny" },
+    { "action": "edit", "resource": "docs/INTERVENTIONS.md", "effect": "deny" },
+    { "action": "edit", "resource": "docs/EXPERIMENT.md", "effect": "deny" },
+    { "action": "edit", "resource": "docs/metrics/*", "effect": "deny" },
+    { "action": "edit", "resource": "docs/sessions/TEMPLATE.md", "effect": "deny" },
+    { "action": "edit", "resource": "docs/report/*", "effect": "deny" },
+
+    { "action": "shell", "resource": "*FLAGWIRE_ALLOW_LOCKED_EDIT*", "effect": "deny" },
+    { "action": "shell", "resource": "*--no-verify*", "effect": "deny" },
+    { "action": "shell", "resource": "*core.hooksPath*", "effect": "deny" },
+    { "action": "shell", "resource": "*lock update*", "effect": "deny" },
+    { "action": "shell", "resource": "*lock-update*", "effect": "deny" },
+    { "action": "shell", "resource": "git push*", "effect": "ask" },
+    { "action": "shell", "resource": "git reset --hard*", "effect": "ask" },
+    { "action": "shell", "resource": "rm -rf*", "effect": "ask" },
+    { "action": "external_directory", "resource": "*", "effect": "ask" }
+  ]
+}
