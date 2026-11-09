@@ -1,0 +1,10 @@
+# Files that define "done". The coding agent never changes them; a person or the
+# reviewing model may, as a logged intervention (tests/README.md, "Locking").
+# One path per line; a trailing slash means a whole directory.
+tests/
+docs/SPEC.md
+docs/PLAN.md
+AGENTS.md
+opencode.json
+.github/workflows/
+.githooks/
