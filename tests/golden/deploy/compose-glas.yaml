@@ -1,0 +1,15 @@
+# flagd serves the flags in flags.flagd.json over OFREP.
+# Merge this into your Compose file. flagwire toggle edits the file in place,
+# and flagd picks the change up without a restart.
+services:
+  flagd:
+    image: ghcr.io/open-feature/flagd@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    command: ["start", "--uri", "file:/etc/flagd/flags.flagd.json"]
+    volumes:
+      - ./flags.flagd.json:/etc/flagd/flags.flagd.json:ro
+  glas:
+    environment:
+      FLAGWIRE_PROVIDER: ofrep
+      FLAGWIRE_OFREP_URL: http://flagd:8016
+    depends_on:
+      - flagd

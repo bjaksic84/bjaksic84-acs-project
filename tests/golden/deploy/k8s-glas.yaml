@@ -1,0 +1,45 @@
+# flagd runs as a sidecar of the app and serves flags.flagd.json over OFREP.
+# flagwire toggle KEY on|off --k8s-configmap glas-flags updates the ConfigMap;
+# flagd picks the change up without a restart.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glas-flags
+data:
+  flags.flagd.json: |
+    {
+      "$schema": "https://flagd.dev/schema/v0/flags.json",
+      "flags": {
+        "admin": {
+          "defaultVariant": "off",
+          "state": "ENABLED",
+          "variants": {
+            "off": false,
+            "on": true
+          }
+        }
+      }
+    }
+---
+# Add to the app's Deployment, under spec.template.spec:
+containers:
+  - name: flagd
+    image: ghcr.io/open-feature/flagd:v0.18.2
+    args: ["start", "--uri", "file:/etc/flagd/flags.flagd.json"]
+    ports:
+      - name: ofrep
+        containerPort: 8016
+    volumeMounts:
+      - name: flags
+        mountPath: /etc/flagd
+        readOnly: true
+volumes:
+  - name: flags
+    configMap:
+      name: glas-flags
+# And in the app's container:
+env:
+  - name: FLAGWIRE_PROVIDER
+    value: ofrep
+  - name: FLAGWIRE_OFREP_URL
+    value: http://localhost:8016
