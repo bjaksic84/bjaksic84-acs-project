@@ -1,0 +1,53 @@
+# feature: apply-jobs
+# level: advanced
+# tier: 2
+# title: a job with no ctx in scope gets context.Background(), and main still gets flags.Setup()
+
+[!net] skip 'needs the network: go get'
+
+fixture worker
+cd worker
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply reports
+stdout '^gated reports: 1 job$'
+stdout '^added flags.Setup\(\) to cmd/worker/main.go$'
+cmpgo internal/jobs/reports.go $GOLDEN/worker-reports/internal/jobs/reports.go
+cmpgo cmd/worker/main.go $GOLDEN/worker-reports/cmd/worker/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/reports-job/flags.go
+
+# behaviour: FLAG_REPORTS=false stops the job from starting
+cp ../zz_flag_test.go internal/jobs/zz_flag_test.go
+exec go test ./internal/jobs/
+
+-- zz_flag_test.go --
+package jobs
+
+import (
+	"testing"
+	"time"
+
+	"example.com/worker/internal/flags"
+)
+
+func TestReportsFlag(t *testing.T) {
+	t.Setenv("FLAG_REPORTS", "false")
+	flags.Setup()
+	w := NewWorker()
+	StartReports(w)
+	time.Sleep(100 * time.Millisecond)
+	if n := w.reports.Load(); n != 0 {
+		t.Fatalf("FLAG_REPORTS=false, but %d reports ran", n)
+	}
+
+	t.Setenv("FLAG_REPORTS", "true")
+	flags.Setup()
+	StartReports(w)
+	for i := 0; i < 200 && w.reports.Load() == 0; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if w.reports.Load() != 1 {
+		t.Fatal("FLAG_REPORTS=true, but the report did not run")
+	}
+}

@@ -1,0 +1,86 @@
+# feature: flagd
+# level: standard
+# tier: 2
+# title: a flag's toggled state survives a sync, stale flags go, --dry-run writes nothing, and status shows the file
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../manifest.json flags.json
+cp ../existing.flagd.json flags.flagd.json
+
+exec flagwire status --json
+jsonmatch stdout ../want-status.json
+
+exec flagwire sync flagd --dry-run
+stdout '^would keep admin \(off\)$'
+stdout '^would add catalog \(on\)$'
+stdout '^would remove old-flag$'
+! stdout '^wrote'
+cmp flags.flagd.json ../existing.flagd.json
+
+exec flagwire sync flagd
+stdout '^kept admin \(off\)$'
+stdout '^added catalog \(on\)$'
+stdout '^removed old-flag$'
+stdout '^wrote flags.flagd.json$'
+cmp flags.flagd.json ../want.flagd.json
+
+mkdir deploy
+exec flagwire sync flagd --file deploy/flags.json
+stdout '^added admin \(on\)$'
+stdout '^wrote deploy/flags.json$'
+
+-- manifest.json --
+{
+  "flags": {
+    "admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"},
+    "catalog": {"defaultValue": true, "description": "Routes under /products (2 routes)", "flagType": "boolean"}
+  }
+}
+-- existing.flagd.json --
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "off",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "old-flag": {
+      "defaultVariant": "on",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}
+-- want.flagd.json --
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "off",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "catalog": {
+      "defaultVariant": "on",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}
+-- want-status.json --
+{"flags": [{"key": "admin", "flagd": "off"}, {"key": "catalog", "flagd": "missing"}]}

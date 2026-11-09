@@ -1,0 +1,18 @@
+# feature: apply-jobs
+# level: basic
+# tier: 2
+# title: a job is gated by wrapping its go statement, using the ctx in scope
+
+[!net] skip 'needs the network: go get'
+
+fixture worker
+cd worker
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply cleanup
+stdout '^gated cleanup: 1 job$'
+stdout '^committed on branch flagwire/cleanup$'
+cmpgo cmd/worker/main.go $GOLDEN/worker-cleanup/cmd/worker/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/cleanup/flags.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/cleanup/setup.go

@@ -1,0 +1,17 @@
+# feature: scan-jobs
+# level: standard
+# tier: 2
+# title: each named job becomes a feature keyed by its function's name; anonymous jobs are left out
+
+fixture worker
+cd worker
+exec flagwire init
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want.json
+
+-- want.json --
+{"features": [
+  {"key": "cleanup", "description": "Background job jobs.Worker.Cleanup", "candidates": ["job:jobs.Worker.Cleanup"], "toggles": []},
+  {"key": "reports", "description": "Background job jobs.Worker.Reports", "candidates": ["job:jobs.Worker.Reports"], "toggles": []},
+  {"key": "send-digests", "description": "Background job jobs.SendDigests", "candidates": ["job:jobs.SendDigests"], "toggles": []}
+]}

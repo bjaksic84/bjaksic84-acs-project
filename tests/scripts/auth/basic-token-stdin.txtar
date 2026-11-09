@@ -1,0 +1,38 @@
+# feature: auth
+# level: basic
+# tier: 2
+# title: a token from stdin is checked, stored, reported by status and removed by logout
+
+fakegithub
+exec flagwire auth status
+stdout '^github: not logged in$'
+
+stdin token.txt
+exec flagwire auth login github --token-stdin
+stdout '^logged in to github as octo-tester$'
+! stdout ghp_goodtoken
+! stderr ghp_goodtoken
+jsonmatch $FLAGWIRE_CONFIG_DIR/credentials.json want-creds.json
+grep '"authorization":"(Bearer|token) ghp_goodtoken"' $FAKEGITHUB_LOG
+
+exec flagwire auth status
+stdout '^github: logged in as octo-tester$'
+exec flagwire auth logout github
+stdout '^logged out of github$'
+exec flagwire auth status
+stdout '^github: not logged in$'
+
+stdin bad.txt
+! exec flagwire auth login github --token-stdin
+exitcode 1
+stderr '^flagwire: github rejected the token$'
+! stderr bad-token
+exec flagwire auth status
+stdout '^github: not logged in$'
+
+-- token.txt --
+ghp_goodtoken
+-- bad.txt --
+bad-token
+-- want-creds.json --
+{"github": {"token": "ghp_goodtoken", "login": "octo-tester"}}

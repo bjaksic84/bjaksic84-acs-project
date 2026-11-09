@@ -1,0 +1,47 @@
+# feature: routers
+# level: advanced
+# tier: 2
+# title: chi routes inside a Route group are gated, and a module without main gets a note
+
+[!net] skip 'needs the network: go get'
+
+fixture chiapp
+cd chiapp
+exec flagwire init
+gitinit
+exec flagwire apply --key admin --candidate 'route:GET /admin/stats' --candidate 'route:DELETE /admin/items/{id}'
+stdout '^gated admin: 2 routes$'
+stdout '^note: no main package imports the gated code; call flags.Setup\(\) at startup$'
+cmpgo internal/api/routes.go $GOLDEN/chiapp-admin/internal/api/routes.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/admin/flags.go
+
+cp ../zz_flag_test.go internal/api/zz_flag_test.go
+exec go test ./internal/api/
+
+-- zz_flag_test.go --
+package api
+
+import (
+	"net/http/httptest"
+	"testing"
+
+	"example.com/chiapp/internal/flags"
+)
+
+func TestAdminFlagOff(t *testing.T) {
+	t.Setenv("FLAG_ADMIN", "false")
+	flags.Setup()
+	h := Router()
+	for _, tc := range []struct {
+		method, path string
+		want         int
+	}{
+		{"GET", "/admin/stats", 404}, {"DELETE", "/admin/items/3", 404}, {"GET", "/items", 200},
+	} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+		if rec.Code != tc.want {
+			t.Errorf("%s %s = %d, want %d", tc.method, tc.path, rec.Code, tc.want)
+		}
+	}
+}

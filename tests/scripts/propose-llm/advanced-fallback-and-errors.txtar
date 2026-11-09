@@ -1,0 +1,38 @@
+# feature: propose-llm
+# level: advanced
+# tier: 2
+# title: --no-llm skips the model, three invalid answers fall back to the heuristic, and an HTTP error fails
+
+fixture shop
+cd shop
+exec flagwire init
+fakellm ../responses.json
+
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want-heuristic.json
+! exists $FAKELLM_LOG
+
+# invalid three times (not JSON, an id in two features, a feature with no ids);
+# the fourth, valid, answer must never be asked for
+exec flagwire propose --json
+stderr '^flagwire: warning: the model''s proposals were invalid 3 times; using the heuristic$'
+jsonmatch stdout ../want-heuristic.json
+
+fakellm ../down.json
+! exec flagwire propose
+exitcode 1
+stderr '^flagwire: cannot reach the model at http://127\.0\.0\.1:\d+/v1: .+; run with --no-llm to use the heuristic$'
+
+-- responses.json --
+{"responses": [
+  "I think the admin routes should be one feature.",
+  "{\"features\":[{\"key\":\"admin\",\"description\":\"a\",\"candidates\":[\"route:GET /admin/orders\"],\"toggles\":[]},{\"key\":\"orders\",\"description\":\"b\",\"candidates\":[\"route:GET /admin/orders\"],\"toggles\":[]}]}",
+  "{\"features\":[{\"key\":\"admin\",\"description\":\"a\",\"candidates\":[],\"toggles\":[]}]}",
+  "{\"features\":[{\"key\":\"admin-tools\",\"description\":\"Order administration\",\"candidates\":[\"route:GET /admin/orders\",\"route:POST /admin/orders/{id}/refund\"],\"toggles\":[]},{\"key\":\"catalog\",\"description\":\"Product pages\",\"candidates\":[\"route:GET /products\",\"route:GET /products/{id}\"],\"toggles\":[]}]}"
+]}
+-- down.json --
+{"responses": [{"status": 503}]}
+-- want-heuristic.json --
+{"source": "heuristic", "features": [
+  {"key": "admin"}, {"key": "cart"}, {"key": "products"}, {"key": "recommendations"}, {"key": "shop-beta-checkout"}
+]}

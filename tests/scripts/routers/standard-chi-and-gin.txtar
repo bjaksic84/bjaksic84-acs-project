@@ -1,0 +1,34 @@
+# feature: routers
+# level: standard
+# tier: 2
+# title: chi and gin routes are found from syntax, with Route and Group prefixes
+
+fixture chiapp
+exec flagwire scan --dir chiapp --json
+jsonmatch stdout want-chi.json
+
+fixture ginapp
+exec flagwire scan --dir ginapp --json
+stderr 'did not type-check'
+jsonmatch stdout want-gin.json
+
+-- want-chi.json --
+{"candidates": [
+  {"id": "route:/files/*", "kind": "route", "pattern": "/files/*", "method": "", "path": "/files/*",
+   "handler": "http.StripPrefix(\"/files/\", http.FileServer(http.Dir(\"files\")))", "via": "chi",
+   "file": "internal/api/routes.go", "line": 21, "func": "api.Router"},
+  {"id": "route:DELETE /admin/items/{id}", "method": "DELETE", "path": "/admin/items/{id}", "handler": "deleteItem",
+   "via": "chi", "line": 19},
+  {"id": "route:GET /admin/stats", "via": "chi", "line": 18},
+  {"id": "route:GET /health", "via": "chi", "line": 14},
+  {"id": "route:GET /items", "via": "chi", "handler": "listItems"},
+  {"id": "route:POST /items", "via": "chi", "handler": "createItem"}
+]}
+-- want-gin.json --
+{"candidates": [
+  {"id": "route:DELETE /api/admin/items/:id", "method": "DELETE", "path": "/api/admin/items/:id", "handler": "deleteItem",
+   "via": "gin", "file": "internal/api/routes.go", "line": 15, "func": "api.Router"},
+  {"id": "route:GET /api/items", "via": "gin", "line": 12},
+  {"id": "route:GET /ping", "via": "gin", "line": 10},
+  {"id": "route:POST /api/items", "via": "gin", "line": 13}
+]}

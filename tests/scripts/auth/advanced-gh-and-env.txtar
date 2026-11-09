@@ -1,0 +1,33 @@
+# feature: auth
+# level: advanced
+# tier: 2
+# title: --with-gh takes gh's token, and FLAGWIRE_GITHUB_TOKEN wins over the stored one
+
+[!exec:sh] skip 'needs a POSIX shell for the fake command'
+
+fakegithub
+mkdir $WORK/bin
+cp gh $WORK/bin/gh
+chmod 755 $WORK/bin/gh
+env PATH=$WORK/bin:$PATH
+exec flagwire auth login github --with-gh
+stdout '^logged in to github as octo-tester$'
+! stdout gho_fromgh
+jsonmatch $FLAGWIRE_CONFIG_DIR/credentials.json want-creds.json
+
+env FLAGWIRE_GITHUB_TOKEN=ghp_fromenv
+exec flagwire auth status
+stdout '^github: using FLAGWIRE_GITHUB_TOKEN$'
+! stdout ghp_fromenv
+
+-- gh --
+#!/bin/sh
+# A stand-in for the GitHub CLI: only "gh auth token" is supported.
+if [ "$1 $2" = "auth token" ]; then
+	echo gho_fromgh
+	exit 0
+fi
+echo "fake gh: unsupported: $*" >&2
+exit 1
+-- want-creds.json --
+{"github": {"token": "gho_fromgh", "login": "octo-tester"}}

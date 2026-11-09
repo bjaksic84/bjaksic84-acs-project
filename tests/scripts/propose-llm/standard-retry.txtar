@@ -1,0 +1,18 @@
+# feature: propose-llm
+# level: standard
+# tier: 2
+# title: an invalid answer is sent back with its problems, and a fenced JSON answer is accepted
+
+fixture shop
+cd shop
+exec flagwire init
+fakellm ../responses.json
+exec flagwire propose --json
+jsonmatch stdout ../want.json
+grep 'unknown candidate \\"route:GET /nope\\"' $FAKELLM_LOG
+
+-- responses.json --
+{"responses": ["{\"features\":[{\"key\":\"Admin\",\"description\":\"x\",\"candidates\":[\"route:GET /nope\"],\"toggles\":[]}]}",
+  "```json\n{\n  \"features\": [\n    {\n      \"key\": \"admin-tools\",\n      \"description\": \"Order administration\",\n      \"candidates\": [\n        \"route:GET /admin/orders\",\n        \"route:POST /admin/orders/{id}/refund\"\n      ],\n      \"toggles\": []\n    },\n    {\n      \"key\": \"catalog\",\n      \"description\": \"Product pages\",\n      \"candidates\": [\n        \"route:GET /products\",\n        \"route:GET /products/{id}\"\n      ],\n      \"toggles\": []\n    }\n  ]\n}\n```\n"]}
+-- want.json --
+{"source": "llm", "features": [{"key": "admin-tools"}, {"key": "catalog"}]}

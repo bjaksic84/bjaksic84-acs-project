@@ -1,0 +1,33 @@
+# feature: e2e-glas
+# level: standard
+# tier: 2
+# title: on Glas v0.1.0, scan finds the admin route table and the login registrar, and propose groups them
+
+[!glas] skip 'set FLAGWIRE_GLAS_DIR to a checkout of Glas v0.1.0'
+[!net] skip 'needs the network: Glas''s modules and go get'
+
+glascopy glas
+cd glas
+exists cmd/glas/serve.go
+exec flagwire init
+exec flagwire scan --json
+jsonmatch stdout ../want-scan.json
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want-propose.json
+! stdout '"route:GET /version"'
+! stdout '"route:GET /static/"'
+
+-- want-scan.json --
+{"module": "github.com/bjaksic84/glas", "candidates": ["...contains",
+  {"id": "route:GET /admin/users", "via": "route-table", "file": "internal/auth/admin.go", "line": 37, "func": "auth.Auth.AdminRoutes"},
+  {"id": "route:GET /admin/audit", "via": "route-table", "file": "internal/auth/admin.go", "line": 42},
+  {"id": "route:GET /login", "via": "registrar", "file": "cmd/glas/serve.go", "line": 99, "func": "main.runServe"},
+  {"id": "route:GET /host", "via": "route-table", "file": "internal/rooms/rooms.go"}
+]}
+-- want-propose.json --
+{"source": "heuristic", "features": ["...contains",
+  {"key": "admin", "description": "Routes under /admin (6 routes)", "candidates": [
+    "route:GET /admin/audit", "route:GET /admin/users", "route:POST /admin/users",
+    "route:POST /admin/users/{id}/disable", "route:POST /admin/users/{id}/enable", "route:POST /admin/users/{id}/role"]},
+  {"key": "login", "description": "Routes under /login (2 routes)"}
+]}

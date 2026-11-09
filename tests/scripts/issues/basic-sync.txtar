@@ -1,0 +1,21 @@
+# feature: issues
+# level: basic
+# tier: 3
+# status: draft
+# title: issues sync opens one removal issue per flag and records its number
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../manifest.json flags.json
+fakegithub
+env FLAGWIRE_GITHUB_TOKEN=ghp_test
+exec flagwire issues sync --repo octo/shop
+stdout '^opened #101 for admin$'
+grep 'admin = 101' flagwire.toml
+grep '"title":"Remove feature flag `admin` once it is fully rolled out"' $FAKEGITHUB_LOG
+exec flagwire issues sync --repo octo/shop
+! stdout opened
+
+-- manifest.json --
+{"flags": {"admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"}}}

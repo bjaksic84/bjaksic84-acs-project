@@ -1,0 +1,26 @@
+# feature: cleanup
+# level: basic
+# tier: 3
+# status: draft
+# title: cleanup --keep on removes the gates and, with no flag left, the flags package
+
+[!net] skip 'needs the network: go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin
+exec flagwire cleanup admin --keep on
+exec git log -1 --format=%s
+stdout '^refactor\(flags\): remove flag admin \(kept on\)$'
+exec git branch --show-current
+stdout '^flagwire/cleanup-admin$'
+cmpgo internal/web/routes.go $FIXTURES/shop/internal/web/routes.go
+cmpgo cmd/shop/main.go $FIXTURES/shop/cmd/shop/main.go
+! exists internal/flags
+jsonmatch flags.json ../want-manifest.json
+
+-- want-manifest.json --
+{"flags": {}}

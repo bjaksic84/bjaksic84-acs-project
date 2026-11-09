@@ -1,0 +1,93 @@
+# feature: provider
+# level: basic
+# tier: 2
+# title: provider add ofrep generates setup_ofrep.go and commits; flagd's answers then switch the gates
+
+[!net] skip 'needs the network: go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin
+exec flagwire provider add ofrep
+stdout '^added provider ofrep$'
+cmpgo internal/flags/setup_ofrep.go $GOLDEN/flags/setup_ofrep.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/admin/setup.go
+grep 'providers\s*=\s*\["env",\s*"ofrep"\]' flagwire.toml
+grep 'github.com/open-feature/go-sdk-contrib/providers/ofrep v0\.1\.7' go.mod
+exec git log -1 --format=%s
+stdout '^feat\(flags\): add the ofrep flag provider$'
+exec git branch --show-current
+stdout '^flagwire/admin$'
+exec git status --porcelain
+! stdout .
+
+exec flagwire provider add ofrep
+stdout '^provider ofrep is already enabled$'
+exec flagwire provider list
+stdout '^env$'
+stdout '^ofrep$'
+
+# behaviour: with FLAGWIRE_PROVIDER=ofrep the gates follow flagd, and fall back to on without it
+cp ../zz_ofrep_test.go internal/web/zz_ofrep_test.go
+exec go test ./internal/web/
+
+-- zz_ofrep_test.go --
+package web
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"example.com/shop/internal/config"
+	"example.com/shop/internal/flags"
+)
+
+// A stand-in for flagd's OFREP endpoint: admin is off, every other flag is
+// unknown.
+func fakeFlagd(t *testing.T) *httptest.Server {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == "POST" && r.URL.Path == "/ofrep/v1/evaluate/flags/admin" {
+			json.NewEncoder(w).Encode(map[string]any{"key": "admin", "value": false, "reason": "STATIC", "variant": "off"})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]any{"key": "unknown", "errorCode": "FLAG_NOT_FOUND"})
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func codes(t *testing.T) map[string]int {
+	h := New(config.Config{}).Routes()
+	got := map[string]int{}
+	for _, path := range []string{"/admin/orders", "/products"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		got[path] = rec.Code
+	}
+	return got
+}
+
+func TestOFREPProvider(t *testing.T) {
+	t.Setenv("FLAGWIRE_PROVIDER", "ofrep")
+	t.Setenv("FLAGWIRE_OFREP_URL", fakeFlagd(t).URL)
+	flags.Setup()
+	if got := codes(t); got["/admin/orders"] != 404 || got["/products"] != 200 {
+		t.Fatalf("with flagd serving admin=off: %v", got)
+	}
+
+	// flagd gone: every flag falls back to its default, on.
+	down := httptest.NewServer(http.NotFoundHandler())
+	down.Close()
+	t.Setenv("FLAGWIRE_OFREP_URL", down.URL)
+	flags.Setup()
+	if got := codes(t); got["/admin/orders"] != 200 {
+		t.Fatalf("with flagd unreachable: %v", got)
+	}
+}

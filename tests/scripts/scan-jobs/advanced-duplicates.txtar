@@ -1,0 +1,47 @@
+# feature: scan-jobs
+# level: advanced
+# tier: 2
+# title: the same job started twice gets #2, and anonymous jobs are numbered per function
+
+exec flagwire scan --dir multi --json
+jsonmatch stdout want.json
+
+-- multi/go.mod --
+module example.com/multi
+
+go 1.24
+-- multi/main.go --
+package main
+
+import "time"
+
+func main() {
+	go tick(1)
+	go func() { tick(2) }()
+	go tick(3)
+	go func() { tick(4) }()
+	other()
+	time.Sleep(time.Millisecond)
+}
+
+func other() {
+	go func() { tick(5) }()
+}
+
+func tick(int) {}
+-- multi/main_test.go --
+package main
+
+import "testing"
+
+func TestTick(t *testing.T) {
+	go tick(0)
+}
+-- want.json --
+{"candidates": [
+  {"id": "job:main.main.func1", "anonymous": true, "line": 7},
+  {"id": "job:main.main.func2", "anonymous": true, "line": 9},
+  {"id": "job:main.other.func1", "anonymous": true, "func": "main.other"},
+  {"id": "job:main.tick", "target": "main.tick", "line": 6},
+  {"id": "job:main.tick#2", "target": "main.tick", "line": 8}
+]}

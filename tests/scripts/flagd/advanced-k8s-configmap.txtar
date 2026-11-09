@@ -1,0 +1,70 @@
+# feature: flagd
+# level: advanced
+# tier: 2
+# title: toggle --k8s-configmap pipes kubectl create --dry-run into kubectl apply, with namespace and context
+
+[!exec:sh] skip 'needs a POSIX shell for the fake command'
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../manifest.json flags.json
+exec flagwire sync flagd
+mkdir $WORK/bin
+cp ../kubectl $WORK/bin/kubectl
+chmod 755 $WORK/bin/kubectl
+env PATH=$WORK/bin:$PATH
+
+exec flagwire toggle admin off --k8s-configmap glas-flags --namespace glas --context k3d-glas
+stdout '^admin: off in flags.flagd.json$'
+stdout '^applied configmap glas-flags in namespace glas$'
+grep '^--context k3d-glas --namespace glas create configmap glas-flags --from-file=flags\.flagd\.json=\S+ --dry-run=client -o yaml$' $WORK/kubectl-args.log
+grep '^--context k3d-glas --namespace glas apply -f -$' $WORK/kubectl-args.log
+cmp $WORK/kubectl-applied.yaml ../want-applied.yaml
+
+exec flagwire toggle admin on --k8s-configmap glas-flags
+stdout '^applied configmap glas-flags in namespace default$'
+grep '^--namespace default create configmap glas-flags ' $WORK/kubectl-args.log
+grep '^--namespace default apply -f -$' $WORK/kubectl-args.log
+
+-- kubectl --
+#!/bin/sh
+# A stand-in for kubectl: logs its arguments, renders "create configmap" from
+# the --from-file it is given, and saves what "apply -f -" reads.
+printf '%s\n' "$*" >> "$WORK/kubectl-args.log"
+for a in "$@"; do
+	case "$a" in
+	--from-file=flags.flagd.json=*) src=${a#--from-file=flags.flagd.json=} ;;
+	esac
+done
+case " $* " in
+*" create configmap "*)
+	printf 'kind: ConfigMap\ndata:\n'
+	cat "$src"
+	;;
+*" apply -f - "*)
+	cat >"$WORK/kubectl-applied.yaml"
+	;;
+*)
+	echo "fake kubectl: unsupported: $*" >&2
+	exit 1
+	;;
+esac
+-- manifest.json --
+{"flags": {"admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"}}}
+-- want-applied.yaml --
+kind: ConfigMap
+data:
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "off",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}

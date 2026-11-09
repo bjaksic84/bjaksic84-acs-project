@@ -1,0 +1,24 @@
+# feature: e2e-glas
+# level: advanced
+# tier: 2
+# title: on Glas v0.1.0, apply admin gates the route table, passes Glas's own tests, and status is clean
+
+[!glas] skip 'set FLAGWIRE_GLAS_DIR to a checkout of Glas v0.1.0'
+[!net] skip 'needs the network: Glas''s modules and go get'
+
+glascopy glas
+cd glas
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin
+stdout '^gated admin: 6 routes$'
+stdout '^added flags.Setup\(\) to cmd/glas/main.go$'
+stdout '^verified: go build ./\.\.\. && go vet ./\.\.\. && go test ./\.\.\.$'
+stdout '^committed on branch flagwire/admin$'
+cmpgo internal/flags/flags.go $GOLDEN/flags/glas-admin/flags.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/glas-admin/setup.go
+grep '\{"GET /admin/users", flags\.Gate\(flags\.Admin, a\.RequireAdmin\(http\.HandlerFunc\(a\.usersPage\)\)\)\}' internal/auth/admin.go
+exec flagwire status --check
+exec flagwire deploy snippet compose --app glas
+stdout '^  glas:$'

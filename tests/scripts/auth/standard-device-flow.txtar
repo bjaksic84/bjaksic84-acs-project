@@ -1,0 +1,21 @@
+# feature: auth
+# level: standard
+# tier: 2
+# title: the device flow shows the code, polls past authorization_pending, and stores the token
+
+fakegithub
+env FLAGWIRE_GITHUB_CLIENT_ID=test-client-id
+exec flagwire auth login github
+stdout '^First copy your one-time code: WDJB-MJHT$'
+stdout '^Then open https://github\.com/login/device$'
+stdout '^logged in to github as octo-tester$'
+! stdout gho_devicetoken
+! stderr gho_devicetoken
+jsonmatch $FLAGWIRE_CONFIG_DIR/credentials.json want-creds.json
+
+grep '"accept":"application/json","body":\{"client_id":"test-client-id","scope":"repo"\},"method":"POST","path":"/login/device/code"' $FAKEGITHUB_LOG
+grep '"grant_type":"urn:ietf:params:oauth:grant-type:device_code"' $FAKEGITHUB_LOG
+grep '"device_code":"dc-123"' $FAKEGITHUB_LOG
+
+-- want-creds.json --
+{"github": {"token": "gho_devicetoken", "login": "octo-tester"}}

@@ -1,0 +1,71 @@
+# feature: pr
+# level: standard
+# tier: 2
+# title: pr refuses without a token, off a flagwire branch, with a dirty tree or no repository; --repo, --base and --draft
+
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec git checkout -q -b flagwire/admin
+cp $GOLDEN/shop-admin/internal/web/routes.go internal/web/routes.go
+cp $GOLDEN/shop-admin/cmd/shop/main.go cmd/shop/main.go
+mkdir internal/flags
+cp $GOLDEN/flags/admin/flags.go internal/flags/flags.go
+cp $GOLDEN/flags/admin/setup.go internal/flags/setup.go
+cp ../manifest-admin.json flags.json
+exec git add -A
+exec git commit -q -F ../msg-admin.txt
+exec git init -q --bare $WORK/remote.git
+fakegithub
+
+! exec flagwire pr
+exitcode 1
+stderr '^flagwire: not logged in to github; run flagwire auth login github$'
+
+env FLAGWIRE_GITHUB_TOKEN=ghp_test
+exec git checkout -q main
+! exec flagwire pr
+exitcode 1
+stderr '^flagwire: not on a flagwire branch$'
+exec git checkout -q flagwire/admin
+
+cp ../note.txt note.txt
+! exec flagwire pr
+exitcode 1
+rm note.txt
+
+# no remote and no --repo
+! exec flagwire pr
+exitcode 1
+
+exec git remote add origin $WORK/remote.git
+exec flagwire pr --repo octo/other --base develop --draft
+stdout '^opened https://github\.com/octo/other/pull/7$'
+grep '"base":"develop"' $FAKEGITHUB_LOG
+grep '"draft":true' $FAKEGITHUB_LOG
+grep '"path":"/repos/octo/other/pulls"' $FAKEGITHUB_LOG
+! grep '"method":"GET","path":"/repos/octo/other"' $FAKEGITHUB_LOG
+exec git --git-dir=$WORK/remote.git branch --list
+stdout 'flagwire/admin'
+
+-- manifest-admin.json --
+{
+  "$schema": "https://raw.githubusercontent.com/open-feature/cli/refs/heads/main/schema/v0/flag-manifest.json",
+  "flags": {
+    "admin": {
+      "defaultValue": true,
+      "description": "Routes under /admin (2 routes)",
+      "flagType": "boolean"
+    }
+  }
+}
+-- msg-admin.txt --
+feat(flags): gate admin behind a feature flag
+
+Flags: admin
+Verified: go build ./... && go vet ./... && go test ./...
+Generated-by: flagwire dev
+-- note.txt --
+an uncommitted file

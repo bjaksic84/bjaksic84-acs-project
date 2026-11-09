@@ -1,0 +1,40 @@
+# feature: propose-llm
+# level: basic
+# tier: 2
+# title: with a model configured, propose asks it once and keeps a valid answer
+
+fixture shop
+cd shop
+exec flagwire init
+fakellm ../responses.json
+exec flagwire propose --json
+jsonmatch stdout ../want.json
+jsonmatch .flagwire/proposals.json ../want.json
+! stdout fake-llm-key
+! stderr fake-llm-key
+
+# the request: an OpenAI-style chat call with a JSON schema, the key, and only
+# the candidates and boolean toggles of the scan
+grep '"authorization":"Bearer fake-llm-key"' $FAKELLM_LOG
+grep '"path":"/v1/chat/completions"' $FAKELLM_LOG
+grep '"model":"fake-model"' $FAKELLM_LOG
+grep '"temperature":0' $FAKELLM_LOG
+grep '"name":"flagwire_proposals"' $FAKELLM_LOG
+grep 'route:GET /admin/orders' $FAKELLM_LOG
+grep 'FEATURE_RECOMMENDATIONS' $FAKELLM_LOG
+! grep 'SHOP_ADDR' $FAKELLM_LOG
+
+-- responses.json --
+{"responses": ["{\"features\":[{\"key\":\"admin-tools\",\"description\":\"Order administration\",\"candidates\":[\"route:GET /admin/orders\",\"route:POST /admin/orders/{id}/refund\"],\"toggles\":[]},{\"key\":\"catalog\",\"description\":\"Product pages\",\"candidates\":[\"route:GET /products\",\"route:GET /products/{id}\"],\"toggles\":[]}]}"]}
+-- want.json --
+{
+  "schema": "flagwire.proposals/v1",
+  "source": "llm",
+  "model": "fake-model",
+  "features": [
+    {"key": "admin-tools", "description": "Order administration",
+     "candidates": ["route:GET /admin/orders", "route:POST /admin/orders/{id}/refund"], "toggles": []},
+    {"key": "catalog", "description": "Product pages",
+     "candidates": ["route:GET /products", "route:GET /products/{id}"], "toggles": []}
+  ]
+}

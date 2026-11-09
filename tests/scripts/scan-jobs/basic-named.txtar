@@ -1,0 +1,22 @@
+# feature: scan-jobs
+# level: basic
+# tier: 2
+# title: go statements outside tests are job candidates, named by the function they start
+
+fixture worker
+exec flagwire scan --dir worker --json
+jsonmatch stdout want.json
+exec flagwire scan --dir worker
+stdout '^Candidates \(4\)$'
+
+-- want.json --
+{"candidates": [
+  {"id": "job:jobs.SendDigests", "kind": "job", "target": "jobs.SendDigests", "anonymous": false,
+   "file": "cmd/worker/main.go", "line": 18, "func": "main.main"},
+  {"id": "job:jobs.Worker.Cleanup", "kind": "job", "target": "jobs.Worker.Cleanup", "anonymous": false,
+   "file": "cmd/worker/main.go", "line": 17, "func": "main.main"},
+  {"id": "job:jobs.Worker.Reports", "kind": "job", "target": "jobs.Worker.Reports", "anonymous": false,
+   "file": "internal/jobs/reports.go", "line": 5, "func": "jobs.StartReports"},
+  {"id": "job:main.main.func1", "kind": "job", "target": "main.main.func1", "anonymous": true,
+   "file": "cmd/worker/main.go", "line": 19, "func": "main.main"}
+]}

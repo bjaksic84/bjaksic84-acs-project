@@ -1,0 +1,18 @@
+# feature: cleanup
+# level: advanced
+# tier: 3
+# status: draft
+# title: cleanup --keep off deletes the gated registrations and leaves the other flags alone
+
+[!net] skip 'needs the network: go get'
+
+fixture lectures
+cd lectures
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin reports
+exec flagwire cleanup admin --keep off
+! grep 'GET /admin/users' internal/admin/admin.go
+grep 'flags\.Gate\(flags\.Reports' internal/admin/admin.go
+exec flagwire status --check

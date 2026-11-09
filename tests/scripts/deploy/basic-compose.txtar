@@ -1,0 +1,12 @@
+# feature: deploy
+# level: basic
+# tier: 2
+# title: deploy snippet compose prints a flagd service and the app's variables, with --app and --image
+
+fixture shop
+cd shop
+exec flagwire init
+exec flagwire deploy snippet compose
+cmp stdout $GOLDEN/deploy/compose-app.yaml
+exec flagwire deploy snippet compose --app glas --image ghcr.io/open-feature/flagd@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+cmp stdout $GOLDEN/deploy/compose-glas.yaml

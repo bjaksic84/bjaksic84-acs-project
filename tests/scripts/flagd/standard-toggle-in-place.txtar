@@ -1,0 +1,62 @@
+# feature: flagd
+# level: standard
+# tier: 2
+# title: toggle rewrites the flagd file in place (a hard link sees the change), and refuses unknown flags and values
+
+[!exec:ln] skip 'needs ln for the hard link'
+fixture shop
+cd shop
+exec flagwire init
+cp ../manifest.json flags.json
+exec flagwire sync flagd
+exec ln flags.flagd.json hardlink.json
+
+exec flagwire toggle admin off
+stdout '^admin: off in flags.flagd.json$'
+cmp flags.flagd.json ../want-off.flagd.json
+cmp hardlink.json flags.flagd.json
+exec flagwire toggle admin on
+stdout '^admin: on in flags.flagd.json$'
+cmp hardlink.json ../want-on.flagd.json
+
+! exec flagwire toggle nosuch on
+exitcode 1
+stderr '^flagwire: flag "nosuch" is not in flags.flagd.json; run flagwire sync flagd$'
+! exec flagwire toggle admin maybe
+exitcode 2
+rm hardlink.json
+rm flags.flagd.json
+! exec flagwire toggle admin on
+exitcode 1
+stderr 'run flagwire sync flagd'
+
+-- manifest.json --
+{"flags": {"admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"}}}
+-- want-off.flagd.json --
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "off",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}
+-- want-on.flagd.json --
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "on",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}

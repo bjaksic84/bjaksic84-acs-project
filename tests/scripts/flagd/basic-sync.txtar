@@ -1,0 +1,46 @@
+# feature: flagd
+# level: basic
+# tier: 2
+# title: sync flagd writes a flagd flag file from the manifest's boolean flags
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../manifest.json flags.json
+exec flagwire sync flagd
+stdout '^added admin \(on\)$'
+stdout '^added recommendations \(off\)$'
+! stdout 'banner-text'
+stdout '^wrote flags.flagd.json$'
+cmp flags.flagd.json ../want.flagd.json
+
+-- manifest.json --
+{
+  "flags": {
+    "admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"},
+    "banner-text": {"defaultValue": "hello", "description": "Not a boolean", "flagType": "string"},
+    "recommendations": {"defaultValue": false, "description": "Adopted from FEATURE_RECOMMENDATIONS", "flagType": "boolean"}
+  }
+}
+-- want.flagd.json --
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "admin": {
+      "defaultVariant": "on",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    },
+    "recommendations": {
+      "defaultVariant": "off",
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      }
+    }
+  }
+}

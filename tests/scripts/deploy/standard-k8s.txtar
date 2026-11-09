@@ -1,0 +1,14 @@
+# feature: deploy
+# level: standard
+# tier: 2
+# title: deploy snippet k8s embeds the current flagd file in a ConfigMap and needs the file
+
+fixture shop
+cd shop
+exec flagwire init
+! exec flagwire deploy snippet k8s --app glas
+exitcode 1
+stderr '^flagwire: flags.flagd.json does not exist; run flagwire sync flagd$'
+cp $GOLDEN/deploy/k8s-flags.flagd.json flags.flagd.json
+exec flagwire deploy snippet k8s --app glas
+cmp stdout $GOLDEN/deploy/k8s-glas.yaml
