@@ -1,0 +1,26 @@
+# feature: scan-routes
+# level: standard
+# tier: 1
+# title: wrapper registrars like Glas's srv.Handle, http.HandleFunc, duplicate patterns, non-constant patterns skipped
+
+fixture lectures
+exec flagwire scan --dir lectures --json
+jsonmatch stdout want.json
+
+-- want.json --
+{"candidates": ["...contains",
+    {"id": "route:/debug/vars", "kind": "route", "pattern": "/debug/vars", "method": "", "path": "/debug/vars",
+     "handler": "vars", "via": "http.HandleFunc", "file": "internal/debug/debug.go", "line": 15, "func": "debug.Register"},
+    {"id": "route:GET /livez", "kind": "route", "pattern": "GET /livez", "method": "GET", "path": "/livez",
+     "handler": "http.HandlerFunc(livez)", "via": "registrar", "file": "internal/httpx/server.go", "line": 20, "func": "httpx.New"},
+    {"id": "route:GET /login", "kind": "route", "pattern": "GET /login", "method": "GET", "path": "/login",
+     "handler": "http.HandlerFunc(loginPage)", "via": "registrar", "file": "cmd/lectures/main.go", "line": 29, "func": "main.run"},
+    {"id": "route:GET /qa", "kind": "route", "pattern": "GET /qa", "method": "GET", "path": "/qa",
+     "handler": "http.HandlerFunc(questions)", "via": "registrar", "file": "cmd/lectures/main.go", "line": 38, "func": "main.run"},
+    {"id": "route:GET /version", "kind": "route", "pattern": "GET /version", "method": "GET", "path": "/version",
+     "handler": "http.HandlerFunc(version)", "via": "registrar", "file": "internal/httpx/server.go", "line": 18, "func": "httpx.New"},
+    {"id": "route:GET /version#2", "kind": "route", "pattern": "GET /version", "method": "GET", "path": "/version",
+     "handler": "http.HandlerFunc(version)", "via": "registrar", "file": "internal/httpx/server.go", "line": 19, "func": "httpx.New"},
+    {"id": "route:POST /login", "kind": "route", "pattern": "POST /login", "method": "POST", "path": "/login",
+     "handler": "http.HandlerFunc(login)", "via": "registrar", "file": "cmd/lectures/main.go", "line": 30, "func": "main.run"}
+]}

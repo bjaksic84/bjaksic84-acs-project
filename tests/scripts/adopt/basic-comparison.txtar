@@ -1,0 +1,47 @@
+# feature: adopt
+# level: basic
+# tier: 1
+# title: a comparison toggle becomes a flag whose fallback is the original expression
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire adopt FEATURE_RECOMMENDATIONS
+stdout '^adopted FEATURE_RECOMMENDATIONS as recommendations: 1 read$'
+stdout '^committed on branch flagwire/adopt-recommendations$'
+
+cmpgo internal/config/config.go $GOLDEN/shop-recommendations/internal/config/config.go
+cmpgo cmd/shop/main.go $GOLDEN/shop-admin/cmd/shop/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/recommendations/flags.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/recommendations/setup.go
+jsonmatch flags.json ../want-manifest.json
+exec git log -1 --format=%B
+stdout '^feat\(flags\): adopt FEATURE_RECOMMENDATIONS as a feature flag$'
+stdout '^Flags: recommendations$'
+
+# behaviour: with no provider value the old variable still decides; FLAG_RECOMMENDATIONS overrides it
+cp ../zz_flag_test.go internal/config/zz_flag_test.go
+exec go test ./internal/config/
+
+-- want-manifest.json --
+{"flags": {"recommendations": {"flagType": "boolean", "defaultValue": false, "description": "Adopted from FEATURE_RECOMMENDATIONS"}}}
+-- zz_flag_test.go --
+package config
+
+import (
+	"testing"
+
+	"example.com/shop/internal/flags"
+)
+
+func TestRecommendationsFlag(t *testing.T) {
+	t.Setenv("FEATURE_RECOMMENDATIONS", "")
+	t.Setenv("FLAG_RECOMMENDATIONS", "true")
+	flags.Setup()
+	if !Load().Recommendations {
+		t.Fatal("FLAG_RECOMMENDATIONS=true did not turn recommendations on")
+	}
+}

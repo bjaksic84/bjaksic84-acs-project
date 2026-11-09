@@ -1,0 +1,33 @@
+# feature: init
+# level: basic
+# tier: 1
+# title: init writes flagwire.toml, an empty manifest and .gitignore, and touches no Go code
+
+fixture shop
+cd shop
+exec flagwire init
+stdout '^initialised flagwire in '
+stdout '^  wrote flagwire.toml$'
+stdout '^  wrote flags.json$'
+stdout '^  wrote .gitignore$'
+
+grep '^module = "example.com/shop"$' flagwire.toml
+grep '^flags_package = "internal/flags"$' flagwire.toml
+grep '^manifest = "flags.json"$' flagwire.toml
+grep '^providers = \["env"\]$' flagwire.toml
+grep '^env_prefix = "FLAG_"$' flagwire.toml
+grep '^flagd_file = "flags.flagd.json"$' flagwire.toml
+grep '^commands = \["go build ./...", "go vet ./...", "go test ./..."\]$' flagwire.toml
+grep '^# \[llm\]$' flagwire.toml
+
+jsonmatch flags.json ../want-manifest.json
+grep '"flags": \{\}' flags.json
+grep '^\.flagwire/$' .gitignore
+
+# no Go code changed
+cmp internal/web/routes.go $FIXTURES/shop/internal/web/routes.go
+cmp cmd/shop/main.go $FIXTURES/shop/cmd/shop/main.go
+! exists internal/flags
+
+-- want-manifest.json --
+{"$schema": "https://raw.githubusercontent.com/open-feature/cli/refs/heads/main/schema/v0/flag-manifest.json", "flags": {}}

@@ -1,0 +1,18 @@
+# feature: scan-flags
+# level: standard
+# tier: 1
+# title: LaunchDarkly and Unleash calls too, and nothing else
+
+fixture sdks
+exec flagwire scan --dir sdks --json
+jsonmatch stdout want.json
+
+-- want.json --
+{"flags": [
+  {"id": "launchdarkly:dark-mode", "sdk": "launchdarkly", "key": "dark-mode", "type": "boolean",
+   "uses": [{"file": "internal/legacy/darkmode.go", "line": 11, "func": "legacy.DarkMode"}]},
+  {"id": "openfeature:banner-text"},
+  {"id": "openfeature:new-checkout"},
+  {"id": "unleash:beta-search", "sdk": "unleash", "key": "beta-search", "type": "boolean",
+   "uses": [{"file": "internal/legacy/search.go", "line": 7, "func": "legacy.BetaSearch"}]}
+]}

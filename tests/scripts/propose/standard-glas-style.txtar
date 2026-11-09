@@ -1,0 +1,38 @@
+# feature: propose
+# level: standard
+# tier: 1
+# title: proposals for a Glas-style app, ops routes left out, and the plain-text listing
+
+fixture lectures
+cd lectures
+exec flagwire init
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want.json
+
+exec flagwire propose --no-llm
+stdout '^admin  Routes under /admin \(2 routes\)$'
+stdout '^reports  Routes under /reports \(2 routes\)$'
+stdout '^lectures-qa  Existing toggle LECTURES_QA$'
+! stdout 'version'
+! stdout 'livez'
+
+-- want.json --
+{
+  "source": "heuristic",
+  "features": [
+    {"key": "admin", "description": "Routes under /admin (2 routes)",
+     "candidates": ["route:GET /admin/users", "route:POST /admin/users"], "toggles": []},
+    {"key": "debug", "description": "Routes under /debug (1 route)",
+     "candidates": ["route:/debug/vars"], "toggles": []},
+    {"key": "lectures-debug", "description": "Existing toggle LECTURES_DEBUG",
+     "candidates": [], "toggles": ["env:LECTURES_DEBUG"]},
+    {"key": "lectures-qa", "description": "Existing toggle LECTURES_QA",
+     "candidates": [], "toggles": ["env:LECTURES_QA"]},
+    {"key": "login", "description": "Routes under /login (2 routes)",
+     "candidates": ["route:GET /login", "route:POST /login"], "toggles": []},
+    {"key": "qa", "description": "Routes under /qa (1 route)",
+     "candidates": ["route:GET /qa"], "toggles": []},
+    {"key": "reports", "description": "Routes under /reports (2 routes)",
+     "candidates": ["route:GET /reports", "route:GET /reports/{id}"], "toggles": []}
+  ]
+}

@@ -1,0 +1,27 @@
+# feature: apply
+# level: standard
+# tier: 1
+# title: --key with --candidate gates chosen routes without proposals; --no-commit leaves the changes unstaged
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire apply --no-commit --key catalog --candidate 'route:GET /products' --candidate 'route:GET /products/{id}'
+stdout '^gated catalog: 2 routes$'
+! stdout 'committed on branch'
+cmpgo internal/web/routes.go $GOLDEN/shop-catalog/internal/web/routes.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/catalog/flags.go
+jsonmatch flags.json ../want-manifest.json
+
+exec git rev-list --count HEAD
+stdout '^1$'
+exec git branch --show-current
+stdout '^main$'
+exec git status --porcelain
+stdout 'internal/web/routes.go'
+
+-- want-manifest.json --
+{"flags": {"catalog": {"flagType": "boolean", "defaultValue": true, "description": "Routes under /products (2 routes)"}}}

@@ -1,0 +1,53 @@
+# feature: propose
+# level: advanced
+# tier: 1
+# title: slugs, camelCase, excluded segments, and toggles merging into route features
+
+cd slugs
+exec flagwire init
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want.json
+
+-- slugs/go.mod --
+module example.com/slugs
+
+go 1.24
+-- slugs/main.go --
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /Admin_Panel/users", page)
+	mux.HandleFunc("GET /reports/daily", page)
+	mux.HandleFunc("GET /{tenant}/home", page)
+	mux.HandleFunc("GET /healthz", page)
+	mux.HandleFunc("GET /metrics", page)
+	mux.HandleFunc("GET /favicon.ico", page)
+	mux.HandleFunc("GET /newCheckout/start", page)
+	if os.Getenv("FEATURE_REPORTS") == "true" {
+		fmt.Println("reports on")
+	}
+	if os.Getenv("FF_NEW_CHECKOUT_ENABLED") == "1" {
+		fmt.Println("new checkout on")
+	}
+	http.ListenAndServe(":8080", mux)
+}
+
+func page(w http.ResponseWriter, r *http.Request) { fmt.Fprintln(w, "page") }
+-- want.json --
+{
+  "features": [
+    {"key": "admin-panel", "description": "Routes under /Admin_Panel (1 route)",
+     "candidates": ["route:GET /Admin_Panel/users"], "toggles": []},
+    {"key": "new-checkout", "description": "Routes under /newCheckout (1 route); Existing toggle FF_NEW_CHECKOUT_ENABLED",
+     "candidates": ["route:GET /newCheckout/start"], "toggles": ["env:FF_NEW_CHECKOUT_ENABLED"]},
+    {"key": "reports", "description": "Routes under /reports (1 route); Existing toggle FEATURE_REPORTS",
+     "candidates": ["route:GET /reports/daily"], "toggles": ["env:FEATURE_REPORTS"]}
+  ]
+}

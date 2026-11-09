@@ -1,0 +1,29 @@
+# feature: apply-verify
+# level: standard
+# tier: 1
+# title: a red test suite stops apply, and the failure's output reaches the user
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+cp ../broken_test.go internal/web/broken_test.go
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+! exec flagwire apply admin
+exitcode 3
+stderr 'verification failed: go test ./\.\.\.'
+stderr 'TestAlreadyBroken'
+exec git status --porcelain
+! stdout .
+! exists internal/flags
+exec git rev-list --count HEAD
+stdout '^1$'
+
+-- broken_test.go --
+package web
+
+import "testing"
+
+func TestAlreadyBroken(t *testing.T) { t.Fatal("this test failed before flagwire ran") }

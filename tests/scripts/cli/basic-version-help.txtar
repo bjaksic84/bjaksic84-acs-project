@@ -1,0 +1,22 @@
+# feature: cli
+# level: basic
+# tier: 1
+# title: version and help work, and help lists every tier 1 command
+
+exec flagwire version
+stdout '^flagwire \S+$'
+
+exec flagwire help
+stdout '^  init\s'
+stdout '^  scan\s'
+stdout '^  propose\s'
+stdout '^  apply\s'
+stdout '^  adopt\s'
+stdout '^  status\s'
+stdout '^  version\s'
+stdout '^  help\s'
+
+exec flagwire --help
+stdout '^  scan\s'
+exec flagwire -h
+stdout '^  apply\s'

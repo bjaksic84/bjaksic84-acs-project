@@ -1,0 +1,36 @@
+# feature: apply
+# level: advanced
+# tier: 1
+# title: unknown features and candidates, toggle-only features and a dirty tree are refused before any change
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+
+! exec flagwire apply admin
+exitcode 2
+stderr 'unknown feature "admin"; run flagwire propose'
+
+exec flagwire propose --no-llm
+! exec flagwire apply nosuch
+exitcode 2
+stderr 'unknown feature "nosuch"'
+! exec flagwire apply --key x --candidate 'route:GET /nope'
+exitcode 2
+stderr 'unknown candidate "route:GET /nope"'
+! exec flagwire apply recommendations
+exitcode 2
+stderr 'flagwire adopt'
+
+cp ../extra.go internal/web/extra.go
+! exec flagwire apply admin
+exitcode 1
+stderr 'working tree has uncommitted changes; commit or stash them, or pass --allow-dirty'
+cmp internal/web/routes.go $FIXTURES/shop/internal/web/routes.go
+! exists internal/flags
+exec git branch --show-current
+stdout '^main$'
+
+-- extra.go --
+package web

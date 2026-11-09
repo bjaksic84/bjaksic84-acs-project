@@ -1,0 +1,21 @@
+# feature: scan-flags
+# level: basic
+# tier: 1
+# title: OpenFeature calls are found from syntax, even when the module does not type-check
+
+fixture sdks
+exec flagwire scan --dir sdks --json
+stderr 'warning: \d+ packages? did not type-check; some findings may be missing'
+jsonmatch stdout want.json
+
+exec flagwire scan --dir sdks
+stdout '^Flags in use \(4\)$'
+
+-- want.json --
+{"flags": ["...contains",
+  {"id": "openfeature:banner-text", "sdk": "openfeature", "key": "banner-text", "type": "string",
+   "uses": [{"file": "internal/checkout/checkout.go", "line": 23, "func": "checkout.Banner"}]},
+  {"id": "openfeature:new-checkout", "sdk": "openfeature", "key": "new-checkout", "type": "boolean",
+   "uses": [{"file": "internal/checkout/checkout.go", "line": 17, "func": "checkout.NewCheckout"},
+            {"file": "internal/checkout/checkout.go", "line": 24, "func": "checkout.Banner"}]}
+]}

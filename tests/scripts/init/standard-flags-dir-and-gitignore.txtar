@@ -1,0 +1,30 @@
+# feature: init
+# level: standard
+# tier: 1
+# title: the flags package goes to flags/ without internal/, .gitignore is appended once, --force rewrites
+
+cd tiny
+exec flagwire init
+grep '^flags_package = "flags"$' flagwire.toml
+grep '^bin/$' .gitignore
+grep '^\.flagwire/$' .gitignore
+
+! exec flagwire init
+exitcode 1
+stderr 'already initialised \(flagwire.toml exists\); use --force to rewrite it'
+
+exec flagwire init --force --flags-package pkg/featureflags
+grep '^flags_package = "pkg/featureflags"$' flagwire.toml
+exec grep -c '^\.flagwire/$' .gitignore
+stdout '^1$'
+
+-- tiny/go.mod --
+module example.com/tiny
+
+go 1.24
+-- tiny/main.go --
+package main
+
+func main() {}
+-- tiny/.gitignore --
+bin/

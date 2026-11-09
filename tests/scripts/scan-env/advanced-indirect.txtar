@@ -1,0 +1,22 @@
+# feature: scan-env
+# level: advanced
+# tier: 1
+# title: reads through a lookup function (as Glas does), constant expressions, variable identity, generated files
+
+fixture lectures
+exec flagwire scan --dir lectures --json
+jsonmatch stdout want.json
+
+-- want.json --
+{
+  "toggles": [
+    {"id": "env:LECTURES_ADDR", "kind": "env", "name": "LECTURES_ADDR", "boolean": false,
+     "reads": [{"file": "internal/config/config.go", "line": 28, "func": "config.Load", "via": "lookup"}]},
+    {"id": "env:LECTURES_DEBUG", "kind": "env", "name": "LECTURES_DEBUG", "boolean": true,
+     "reads": [{"file": "internal/debug/debug.go", "line": 12, "func": "debug.Register", "via": "os.Getenv"}]},
+    {"id": "env:LECTURES_DEBUG_PAGE", "kind": "env", "name": "LECTURES_DEBUG_PAGE", "boolean": false,
+     "reads": [{"file": "internal/debug/debug.go", "line": 16, "func": "debug.Register", "via": "os.Getenv"}]},
+    {"id": "env:LECTURES_QA", "kind": "env", "name": "LECTURES_QA", "boolean": true,
+     "reads": [{"file": "internal/config/config.go", "line": 31, "func": "config.Load", "via": "lookup"}]}
+  ]
+}

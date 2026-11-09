@@ -1,0 +1,66 @@
+# feature: status
+# level: standard
+# tier: 1
+# title: flags the code never checks and keys the manifest lacks are reported, and --check fails on them
+
+fixture shop
+cd shop
+exec flagwire init
+cp $GOLDEN/shop-admin/internal/web/routes.go internal/web/routes.go
+cp $GOLDEN/shop-admin/cmd/shop/main.go cmd/shop/main.go
+mkdir internal/flags
+cp $GOLDEN/flags/admin/flags.go internal/flags/flags.go
+cp $GOLDEN/flags/admin/setup.go internal/flags/setup.go
+cp ../manifest-admin.json flags.json
+
+cp ../manifest-drift.json flags.json
+cp ../ghost.go internal/web/ghost.go
+exec flagwire status --json
+jsonmatch stdout ../want.json
+exec flagwire status
+stdout '^unused: old-banner$'
+stdout '^undeclared: ghost$'
+! exec flagwire status --check
+exitcode 1
+
+-- manifest-admin.json --
+{
+  "$schema": "https://raw.githubusercontent.com/open-feature/cli/refs/heads/main/schema/v0/flag-manifest.json",
+  "flags": {
+    "admin": {
+      "defaultValue": true,
+      "description": "Routes under /admin (2 routes)",
+      "flagType": "boolean"
+    }
+  }
+}
+-- manifest-drift.json --
+{
+  "flags": {
+    "admin": {"defaultValue": true, "description": "Routes under /admin (2 routes)", "flagType": "boolean"},
+    "old-banner": {"defaultValue": false, "description": "Nobody checks this any more", "flagType": "boolean"}
+  }
+}
+-- ghost.go --
+package web
+
+import (
+	"net/http"
+
+	"example.com/shop/internal/flags"
+)
+
+func (s *Server) ghost(w http.ResponseWriter, r *http.Request) {
+	if flags.Enabled(r.Context(), "ghost", true) {
+		w.WriteHeader(http.StatusTeapot)
+	}
+}
+-- want.json --
+{
+  "flags": [
+    {"key": "admin", "default": true, "env": "FLAG_ADMIN"},
+    {"key": "old-banner", "default": false, "env": "FLAG_OLD_BANNER", "uses": []}
+  ],
+  "unused": ["old-banner"],
+  "undeclared": ["ghost"]
+}

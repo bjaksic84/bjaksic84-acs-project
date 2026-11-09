@@ -1,0 +1,22 @@
+# feature: cli
+# level: standard
+# tier: 1
+# title: usage errors exit 2 with a clear message
+
+! exec flagwire
+exitcode 2
+stdout '^  scan\s'
+
+! exec flagwire frobnicate
+exitcode 2
+stderr '^flagwire: unknown command "frobnicate"$'
+
+fixture shop
+! exec flagwire scan --dir shop --no-such-flag
+exitcode 2
+
+# Go flag syntax: --dir=x works as well as --dir x
+exec flagwire scan --dir=shop
+stdout '^Candidates \(7\)$'
+exec flagwire scan --dir shop
+stdout '^Candidates \(7\)$'

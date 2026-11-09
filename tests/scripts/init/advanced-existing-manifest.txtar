@@ -1,0 +1,34 @@
+# feature: init
+# level: advanced
+# tier: 1
+# title: init keeps an existing manifest as it is and refuses an invalid one before writing anything
+
+fixture shop
+cp keep.json shop/flags.json
+exec flagwire init --dir shop
+stdout '^  wrote flagwire.toml$'
+! stdout 'wrote flags.json'
+cmp shop/flags.json keep.json
+
+fixture shop broken
+cp bad.json broken/flags.json
+! exec flagwire init --dir broken
+exitcode 1
+stderr 'flags.json is not a valid manifest'
+! exists broken/flagwire.toml
+! exists broken/.gitignore
+cmp broken/flags.json bad.json
+
+-- keep.json --
+{
+  "$schema": "https://raw.githubusercontent.com/open-feature/cli/refs/heads/main/schema/v0/flag-manifest.json",
+  "flags": {
+    "dark-mode": {
+      "description": "Kept as it was",
+      "defaultValue": false,
+      "flagType": "boolean"
+    }
+  }
+}
+-- bad.json --
+{"flags": [1, 2]}

@@ -1,0 +1,76 @@
+# feature: scan-env
+# level: standard
+# tier: 1
+# title: ParseBool, LookupEnv, values that flow through a variable, constants, and boolean command-line flags
+
+exec flagwire scan --dir envmix --json
+jsonmatch stdout want.json
+
+-- envmix/go.mod --
+module example.com/envmix
+
+go 1.24
+-- envmix/main.go --
+// Command envmix reads its settings in every common way.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+)
+
+const envVerbose = "ENVMIX_VERBOSE"
+
+func main() {
+	dryRun := flag.Bool("dry-run", false, "print instead of doing")
+	var fast bool
+	flag.BoolVar(&fast, "fast", false, "skip checks")
+	fs := flag.NewFlagSet("sub", flag.ExitOnError)
+	quiet := fs.Bool("quiet", false, "less output")
+	flag.Parse()
+
+	verbose, _ := strconv.ParseBool(os.Getenv(envVerbose))
+	mode := os.Getenv("ENVMIX_MODE")
+	if mode == "on" {
+		fmt.Println("mode on")
+	}
+	if v, ok := os.LookupEnv("ENVMIX_COLOR"); ok && v == "true" {
+		fmt.Println("color")
+	}
+	name := "ENVMIX_" + os.Args[0]
+	_ = os.Getenv(name) // not a constant name: not reported
+	region := os.Getenv("ENVMIX_REGION")
+	fmt.Println(*dryRun, fast, *quiet, verbose, region)
+}
+-- envmix/main_test.go --
+package main
+
+import (
+	"os"
+	"testing"
+)
+
+func TestNothing(t *testing.T) {
+	_ = os.Getenv("ENVMIX_TEST_ONLY") == "true"
+}
+-- want.json --
+{
+  "toggles": [
+    {"id": "env:ENVMIX_COLOR", "kind": "env", "name": "ENVMIX_COLOR", "boolean": true,
+     "reads": [{"file": "main.go", "line": 26, "func": "main.main", "via": "os.LookupEnv"}]},
+    {"id": "env:ENVMIX_MODE", "kind": "env", "name": "ENVMIX_MODE", "boolean": true,
+     "reads": [{"file": "main.go", "line": 22, "func": "main.main", "via": "os.Getenv"}]},
+    {"id": "env:ENVMIX_REGION", "kind": "env", "name": "ENVMIX_REGION", "boolean": false,
+     "reads": [{"file": "main.go", "line": 31, "func": "main.main", "via": "os.Getenv"}]},
+    {"id": "env:ENVMIX_VERBOSE", "kind": "env", "name": "ENVMIX_VERBOSE", "boolean": true,
+     "reads": [{"file": "main.go", "line": 21, "func": "main.main", "via": "os.Getenv"}]},
+    {"id": "flag:dry-run", "kind": "cli-flag", "name": "dry-run", "boolean": true,
+     "reads": [{"file": "main.go", "line": 14, "func": "main.main", "via": "flag.Bool"}]},
+    {"id": "flag:fast", "kind": "cli-flag", "name": "fast", "boolean": true,
+     "reads": [{"file": "main.go", "line": 16, "func": "main.main", "via": "flag.BoolVar"}]},
+    {"id": "flag:quiet", "kind": "cli-flag", "name": "quiet", "boolean": true,
+     "reads": [{"file": "main.go", "line": 18, "func": "main.main", "via": "FlagSet.Bool"}]}
+  ]
+}

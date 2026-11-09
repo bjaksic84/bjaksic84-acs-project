@@ -1,0 +1,30 @@
+# feature: propose
+# level: basic
+# tier: 1
+# title: without a model, routes group by first path segment and boolean toggles become features
+
+fixture shop
+cd shop
+exec flagwire init
+exec flagwire propose --no-llm --json
+jsonmatch stdout ../want.json
+exists .flagwire/proposals.json
+jsonmatch .flagwire/proposals.json ../want.json
+
+-- want.json --
+{
+  "schema": "flagwire.proposals/v1",
+  "source": "heuristic",
+  "features": [
+    {"key": "admin", "description": "Routes under /admin (2 routes)",
+     "candidates": ["route:GET /admin/orders", "route:POST /admin/orders/{id}/refund"], "toggles": []},
+    {"key": "cart", "description": "Routes under /cart (1 route)",
+     "candidates": ["route:POST /cart"], "toggles": []},
+    {"key": "products", "description": "Routes under /products (2 routes)",
+     "candidates": ["route:GET /products", "route:GET /products/{id}"], "toggles": []},
+    {"key": "recommendations", "description": "Existing toggle FEATURE_RECOMMENDATIONS",
+     "candidates": [], "toggles": ["env:FEATURE_RECOMMENDATIONS"]},
+    {"key": "shop-beta-checkout", "description": "Existing toggle SHOP_BETA_CHECKOUT",
+     "candidates": [], "toggles": ["env:SHOP_BETA_CHECKOUT"]}
+  ]
+}

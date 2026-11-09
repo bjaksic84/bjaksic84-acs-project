@@ -1,0 +1,38 @@
+# feature: adopt
+# level: standard
+# tier: 1
+# title: a strconv.ParseBool toggle gets its flag after the error check, under a key chosen with --key
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire adopt --key beta-checkout SHOP_BETA_CHECKOUT
+stdout '^adopted SHOP_BETA_CHECKOUT as beta-checkout: 1 read$'
+cmpgo internal/config/config.go $GOLDEN/shop-beta-checkout/internal/config/config.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/beta-checkout/flags.go
+exec git branch --show-current
+stdout '^flagwire/adopt-beta-checkout$'
+
+cp ../zz_flag_test.go internal/config/zz_flag_test.go
+exec go test ./internal/config/
+
+-- zz_flag_test.go --
+package config
+
+import (
+	"testing"
+
+	"example.com/shop/internal/flags"
+)
+
+func TestBetaCheckoutFlag(t *testing.T) {
+	t.Setenv("SHOP_BETA_CHECKOUT", "")
+	t.Setenv("FLAG_BETA_CHECKOUT", "true")
+	flags.Setup()
+	if !Load().BetaCheckout {
+		t.Fatal("FLAG_BETA_CHECKOUT=true did not turn the beta checkout on")
+	}
+}

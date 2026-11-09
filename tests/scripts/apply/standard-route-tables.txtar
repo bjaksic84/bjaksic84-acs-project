@@ -1,0 +1,55 @@
+# feature: apply
+# level: standard
+# tier: 1
+# title: two features at once, gated inside route tables as in Glas, with flags.Setup() added to main
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture lectures
+cd lectures
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin reports
+stdout '^gated admin: 2 routes$'
+stdout '^gated reports: 2 routes$'
+stdout '^added flags.Setup\(\) to cmd/lectures/main.go$'
+stdout '^committed on branch flagwire/admin-reports$'
+
+cmpgo internal/admin/admin.go $GOLDEN/lectures-admin-reports/internal/admin/admin.go
+cmpgo cmd/lectures/main.go $GOLDEN/lectures-admin-reports/cmd/lectures/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/admin-reports/flags.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/admin-reports/setup.go
+exec git log -1 --format=%B
+stdout '^feat\(flags\): gate admin, reports behind feature flags$'
+stdout '^Flags: admin, reports$'
+
+cp ../zz_flagoff_test.go internal/admin/zz_flagoff_test.go
+exec go test ./internal/admin/
+
+-- zz_flagoff_test.go --
+package admin
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"example.com/lectures/internal/flags"
+)
+
+func TestAdminFlagOff(t *testing.T) {
+	t.Setenv("FLAG_ADMIN", "false")
+	flags.Setup()
+	mux := http.NewServeMux()
+	for _, rt := range append(Routes(), ReportRoutes()...) {
+		mux.Handle(rt.Pattern, rt.Handler)
+	}
+	for path, want := range map[string]int{"/admin/users": 404, "/reports": 200, "/reports/2": 200} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != want {
+			t.Errorf("GET %s = %d, want %d", path, rec.Code, want)
+		}
+	}
+}

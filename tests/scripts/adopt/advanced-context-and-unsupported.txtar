@@ -1,0 +1,159 @@
+# feature: adopt
+# level: advanced
+# tier: 1
+# title: --all picks r.Context() or ctx when in scope, skips an unsupported shape, and fails when nothing is adopted
+
+[!net] skip 'needs the network: apply runs go get'
+
+cd togglez
+exec flagwire init
+gitinit
+exec flagwire adopt --all
+stdout '^adopted FEATURE_DARK_MODE as dark-mode: 1 read$'
+stdout '^adopted FEATURE_FAST_PATH as fast-path: 1 read$'
+stdout '^skipped FEATURE_LEGACY at main.go:30: unsupported shape$'
+cmpgo main.go ../want-main.go
+cmpgo flags/flags.go $GOLDEN/flags/dark-mode-fast-path/flags.go
+cmpgo flags/setup.go $GOLDEN/flags/dark-mode-fast-path/setup.go
+exec git log -1 --format=%B
+stdout '^feat\(flags\): adopt FEATURE_DARK_MODE, FEATURE_FAST_PATH as feature flags$'
+exec git branch --show-current
+stdout '^flagwire/adopt-dark-mode-fast-path$'
+jsonmatch flags.json ../want-manifest.json
+
+# behaviour: the provider overrides both, and the old variables still decide without it
+cp ../zz_flag_test.go zz_flag_test.go
+exec go test .
+rm zz_flag_test.go
+
+! exec flagwire adopt FEATURE_LEGACY
+exitcode 1
+stdout '^skipped FEATURE_LEGACY at main.go:30: unsupported shape$'
+
+-- togglez/go.mod --
+module example.com/togglez
+
+go 1.24
+-- togglez/main.go --
+// Command togglez serves a page.
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	http.HandleFunc("GET /", page)
+	fmt.Println(fastPath(context.Background()), legacy())
+	http.ListenAndServe(":8080", nil)
+}
+
+func page(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("FEATURE_DARK_MODE") == "true" {
+		fmt.Fprintln(w, "dark")
+		return
+	}
+	fmt.Fprintln(w, "light")
+}
+
+func fastPath(ctx context.Context) bool {
+	return os.Getenv("FEATURE_FAST_PATH") != "false"
+}
+
+func legacy() bool {
+	if v := os.Getenv("FEATURE_LEGACY"); v == "1" {
+		return true
+	}
+	return false
+}
+-- togglez/main_test.go --
+package main
+
+import (
+	"context"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestPage(t *testing.T) {
+	rec := httptest.NewRecorder()
+	page(rec, httptest.NewRequest("GET", "/", nil))
+	if !strings.Contains(rec.Body.String(), "light") {
+		t.Fatal(rec.Body.String())
+	}
+	if !fastPath(context.Background()) {
+		t.Fatal("fast path off")
+	}
+}
+-- want-manifest.json --
+{"flags": {
+  "dark-mode": {"flagType": "boolean", "defaultValue": false, "description": "Adopted from FEATURE_DARK_MODE"},
+  "fast-path": {"flagType": "boolean", "defaultValue": false, "description": "Adopted from FEATURE_FAST_PATH"}
+}}
+-- zz_flag_test.go --
+package main
+
+import (
+	"context"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"example.com/togglez/flags"
+)
+
+func TestFlagsOverride(t *testing.T) {
+	t.Setenv("FLAG_DARK_MODE", "true")
+	t.Setenv("FLAG_FAST_PATH", "false")
+	flags.Setup()
+	rec := httptest.NewRecorder()
+	page(rec, httptest.NewRequest("GET", "/", nil))
+	if !strings.Contains(rec.Body.String(), "dark") {
+		t.Fatal(rec.Body.String())
+	}
+	if fastPath(context.Background()) {
+		t.Fatal("FLAG_FAST_PATH=false was ignored")
+	}
+}
+-- want-main.go --
+// Command togglez serves a page.
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+
+	"example.com/togglez/flags"
+)
+
+func main() {
+	flags.Setup()
+	http.HandleFunc("GET /", page)
+	fmt.Println(fastPath(context.Background()), legacy())
+	http.ListenAndServe(":8080", nil)
+}
+
+func page(w http.ResponseWriter, r *http.Request) {
+	if flags.Enabled(r.Context(), flags.DarkMode, os.Getenv("FEATURE_DARK_MODE") == "true") {
+		fmt.Fprintln(w, "dark")
+		return
+	}
+	fmt.Fprintln(w, "light")
+}
+
+func fastPath(ctx context.Context) bool {
+	return flags.Enabled(ctx, flags.FastPath, os.Getenv("FEATURE_FAST_PATH") != "false")
+}
+
+func legacy() bool {
+	if v := os.Getenv("FEATURE_LEGACY"); v == "1" {
+		return true
+	}
+	return false
+}

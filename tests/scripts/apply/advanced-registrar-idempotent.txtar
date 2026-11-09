@@ -1,0 +1,23 @@
+# feature: apply
+# level: advanced
+# tier: 1
+# title: routes behind a wrapper registrar in package main; applying twice changes nothing
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture lectures
+cd lectures
+exec flagwire init
+gitinit
+exec flagwire apply --key login --candidate 'route:GET /login' --candidate 'route:POST /login'
+stdout '^gated login: 2 routes$'
+cmpgo cmd/lectures/main.go $GOLDEN/lectures-login/cmd/lectures/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/login/flags.go
+exec git rev-list --count HEAD
+stdout '^2$'
+
+exec flagwire apply --key login --candidate 'route:GET /login' --candidate 'route:POST /login'
+stdout '^nothing to apply: login already gated$'
+exec git rev-list --count HEAD
+stdout '^2$'
+cmpgo cmd/lectures/main.go $GOLDEN/lectures-login/cmd/lectures/main.go

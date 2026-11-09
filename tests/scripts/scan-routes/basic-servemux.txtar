@@ -1,0 +1,32 @@
+# feature: scan-routes
+# level: basic
+# tier: 1
+# title: ServeMux.HandleFunc and Handle routes, with method, path, handler and position
+
+fixture shop
+exec flagwire scan --dir shop --json
+jsonmatch stdout want.json
+
+exec flagwire scan --dir shop
+stdout '^Candidates \(7\)$'
+stdout 'GET /admin/orders'
+
+-- want.json --
+{
+  "candidates": [
+    {"id": "route:GET /admin/orders", "kind": "route", "pattern": "GET /admin/orders", "method": "GET", "path": "/admin/orders",
+     "handler": "s.adminOrders", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 12, "func": "web.Server.Routes"},
+    {"id": "route:GET /products", "kind": "route", "pattern": "GET /products", "method": "GET", "path": "/products",
+     "handler": "s.listProducts", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 9, "func": "web.Server.Routes"},
+    {"id": "route:GET /products/{id}", "kind": "route", "pattern": "GET /products/{id}", "method": "GET", "path": "/products/{id}",
+     "handler": "s.showProduct", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 10, "func": "web.Server.Routes"},
+    {"id": "route:GET /static/", "kind": "route", "pattern": "GET /static/", "method": "GET", "path": "/static/",
+     "handler": "http.StripPrefix(\"/static/\", http.FileServer(http.Dir(\"static\")))", "via": "ServeMux.Handle", "file": "internal/web/routes.go", "line": 14, "func": "web.Server.Routes"},
+    {"id": "route:GET /{$}", "kind": "route", "pattern": "GET /{$}", "method": "GET", "path": "/{$}",
+     "handler": "s.home", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 8, "func": "web.Server.Routes"},
+    {"id": "route:POST /admin/orders/{id}/refund", "kind": "route", "pattern": "POST /admin/orders/{id}/refund", "method": "POST", "path": "/admin/orders/{id}/refund",
+     "handler": "s.refundOrder", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 13, "func": "web.Server.Routes"},
+    {"id": "route:POST /cart", "kind": "route", "pattern": "POST /cart", "method": "POST", "path": "/cart",
+     "handler": "s.addToCart", "via": "ServeMux.HandleFunc", "file": "internal/web/routes.go", "line": 11, "func": "web.Server.Routes"}
+  ]
+}

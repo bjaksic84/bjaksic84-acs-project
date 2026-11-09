@@ -1,0 +1,66 @@
+# feature: apply
+# level: basic
+# tier: 1
+# title: apply gates a feature's routes, generates the flags package, verifies, and commits on a branch
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin
+stdout '^gated admin: 2 routes$'
+stdout '^verified: go build ./\.\.\. && go vet ./\.\.\. && go test ./\.\.\.$'
+stdout '^committed on branch flagwire/admin$'
+
+cmpgo internal/web/routes.go $GOLDEN/shop-admin/internal/web/routes.go
+cmpgo cmd/shop/main.go $GOLDEN/shop-admin/cmd/shop/main.go
+cmpgo internal/flags/flags.go $GOLDEN/flags/admin/flags.go
+cmpgo internal/flags/setup.go $GOLDEN/flags/admin/setup.go
+! exists internal/flags/setup_ofrep.go
+jsonmatch flags.json ../want-manifest.json
+grep 'github.com/open-feature/go-sdk v1\.20\.0' go.mod
+
+exec git branch --show-current
+stdout '^flagwire/admin$'
+exec git log -1 --format=%B
+stdout '^feat\(flags\): gate admin behind a feature flag$'
+stdout '^Flags: admin$'
+stdout '^Verified: go build ./\.\.\. && go vet ./\.\.\. && go test ./\.\.\.$'
+stdout '^Generated-by: flagwire \S+$'
+exec git status --porcelain
+! stdout .
+
+# the gate works: FLAG_ADMIN=false turns the admin pages into 404s
+cp ../zz_flagoff_test.go internal/web/zz_flagoff_test.go
+exec go test ./internal/web/
+
+-- want-manifest.json --
+{"flags": {"admin": {"flagType": "boolean", "defaultValue": true, "description": "Routes under /admin (2 routes)"}}}
+-- zz_flagoff_test.go --
+package web
+
+import (
+	"net/http/httptest"
+	"testing"
+
+	"example.com/shop/internal/config"
+	"example.com/shop/internal/flags"
+)
+
+// The file name sorts last, so this runs after the app's own tests and turning
+// a flag off here doesn't affect them.
+func TestAdminFlagOff(t *testing.T) {
+	t.Setenv("FLAG_ADMIN", "false")
+	flags.Setup()
+	h := New(config.Config{}).Routes()
+	for path, want := range map[string]int{"/admin/orders": 404, "/products": 200} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != want {
+			t.Errorf("GET %s = %d, want %d", path, rec.Code, want)
+		}
+	}
+}

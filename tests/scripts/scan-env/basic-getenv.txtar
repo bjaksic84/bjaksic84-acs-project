@@ -1,0 +1,26 @@
+# feature: scan-env
+# level: basic
+# tier: 1
+# title: os.Getenv reads, boolean or not, with file, line and function
+
+fixture shop
+exec flagwire scan --dir shop --json
+jsonmatch stdout want.json
+
+exec flagwire scan --dir shop
+stdout '^Toggles \(3\)$'
+stdout 'FEATURE_RECOMMENDATIONS'
+
+-- want.json --
+{
+  "schema": "flagwire.scan/v1",
+  "module": "example.com/shop",
+  "toggles": [
+    {"id": "env:FEATURE_RECOMMENDATIONS", "kind": "env", "name": "FEATURE_RECOMMENDATIONS", "boolean": true,
+     "reads": [{"file": "internal/config/config.go", "line": 22, "func": "config.Load", "via": "os.Getenv"}]},
+    {"id": "env:SHOP_ADDR", "kind": "env", "name": "SHOP_ADDR", "boolean": false,
+     "reads": [{"file": "internal/config/config.go", "line": 18, "func": "config.Load", "via": "os.Getenv"}]},
+    {"id": "env:SHOP_BETA_CHECKOUT", "kind": "env", "name": "SHOP_BETA_CHECKOUT", "boolean": true,
+     "reads": [{"file": "internal/config/config.go", "line": 23, "func": "config.Load", "via": "os.Getenv"}]}
+  ]
+}

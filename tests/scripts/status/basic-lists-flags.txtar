@@ -1,0 +1,43 @@
+# feature: status
+# level: basic
+# tier: 1
+# title: status lists each manifest flag with its variable and the places the code checks it
+
+fixture shop
+cd shop
+exec flagwire init
+cp $GOLDEN/shop-admin/internal/web/routes.go internal/web/routes.go
+cp $GOLDEN/shop-admin/cmd/shop/main.go cmd/shop/main.go
+mkdir internal/flags
+cp $GOLDEN/flags/admin/flags.go internal/flags/flags.go
+cp $GOLDEN/flags/admin/setup.go internal/flags/setup.go
+cp ../manifest-admin.json flags.json
+
+exec flagwire status --json
+jsonmatch stdout ../want.json
+exec flagwire status
+stdout '^admin  default on  2 uses$'
+exec flagwire status --check
+
+-- manifest-admin.json --
+{
+  "$schema": "https://raw.githubusercontent.com/open-feature/cli/refs/heads/main/schema/v0/flag-manifest.json",
+  "flags": {
+    "admin": {
+      "defaultValue": true,
+      "description": "Routes under /admin (2 routes)",
+      "flagType": "boolean"
+    }
+  }
+}
+-- want.json --
+{
+  "schema": "flagwire.status/v1",
+  "flags": [
+    {"key": "admin", "default": true, "description": "Routes under /admin (2 routes)", "env": "FLAG_ADMIN",
+     "uses": [{"file": "internal/web/routes.go", "line": 16},
+              {"file": "internal/web/routes.go", "line": 17}]}
+  ],
+  "unused": [],
+  "undeclared": []
+}

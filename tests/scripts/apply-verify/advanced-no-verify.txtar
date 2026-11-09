@@ -1,0 +1,29 @@
+# feature: apply-verify
+# level: advanced
+# tier: 1
+# title: --no-verify (after the argument) skips verification, warns, and says so in the commit
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../flagwire.toml flagwire.toml
+gitinit
+exec flagwire propose --no-llm
+exec flagwire apply admin --no-verify
+stderr 'warning: verification skipped'
+cmpgo internal/web/routes.go $GOLDEN/shop-admin/internal/web/routes.go
+exec git log -1 --format=%B
+stdout '^Verified: skipped$'
+
+-- flagwire.toml --
+module = "example.com/shop"
+flags_package = "internal/flags"
+manifest = "flags.json"
+providers = ["env"]
+env_prefix = "FLAG_"
+flagd_file = "flags.flagd.json"
+
+[verify]
+commands = ["go build ./...", "false"]

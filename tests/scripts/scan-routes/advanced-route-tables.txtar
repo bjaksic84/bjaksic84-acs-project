@@ -1,0 +1,30 @@
+# feature: scan-routes
+# level: advanced
+# tier: 1
+# title: route tables (keyed and unkeyed, in functions and package variables) and the exact full list
+
+fixture lectures
+exec flagwire init --dir lectures
+exec flagwire scan --dir lectures --json
+jsonmatch stdout want.json
+exists lectures/.flagwire/scan.json
+jsonmatch lectures/.flagwire/scan.json want.json
+
+-- want.json --
+{"candidates": [
+    {"id": "route:/debug/vars"},
+    {"id": "route:GET /admin/users", "kind": "route", "pattern": "GET /admin/users", "method": "GET", "path": "/admin/users",
+     "handler": "http.HandlerFunc(users)", "via": "route-table", "file": "internal/admin/admin.go", "line": 18, "func": "admin.Routes"},
+    {"id": "route:GET /livez"},
+    {"id": "route:GET /login"},
+    {"id": "route:GET /qa"},
+    {"id": "route:GET /reports", "kind": "route", "pattern": "GET /reports", "method": "GET", "path": "/reports",
+     "handler": "http.HandlerFunc(reports)", "via": "route-table", "file": "internal/admin/admin.go", "line": 25, "func": "admin.init"},
+    {"id": "route:GET /reports/{id}", "kind": "route", "pattern": "GET /reports/{id}", "method": "GET", "path": "/reports/{id}",
+     "handler": "http.HandlerFunc(report)", "via": "route-table", "file": "internal/admin/admin.go", "line": 26, "func": "admin.init"},
+    {"id": "route:GET /version"},
+    {"id": "route:GET /version#2"},
+    {"id": "route:POST /admin/users", "kind": "route", "pattern": "POST /admin/users", "method": "POST", "path": "/admin/users",
+     "handler": "requireAdmin(http.HandlerFunc(createUser))", "via": "route-table", "file": "internal/admin/admin.go", "line": 19, "func": "admin.Routes"},
+    {"id": "route:POST /login"}
+]}

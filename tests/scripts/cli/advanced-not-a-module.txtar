@@ -1,0 +1,26 @@
+# feature: cli
+# level: advanced
+# tier: 1
+# title: exit 4 outside a Go module or before init, and nothing is written
+
+mkdir empty
+! exec flagwire scan --dir empty
+exitcode 4
+stderr 'no go.mod in'
+! exec flagwire init --dir empty
+exitcode 4
+! exists empty/flagwire.toml
+
+fixture shop
+! exec flagwire propose --dir shop --no-llm
+exitcode 4
+stderr 'flagwire is not initialised in .*; run flagwire init'
+! exec flagwire status --dir shop
+exitcode 4
+! exec flagwire apply --dir shop admin
+exitcode 4
+! exec flagwire adopt --dir shop FEATURE_RECOMMENDATIONS
+exitcode 4
+! exists shop/flagwire.toml
+! exists shop/.flagwire
+cmp shop/internal/web/routes.go $FIXTURES/shop/internal/web/routes.go

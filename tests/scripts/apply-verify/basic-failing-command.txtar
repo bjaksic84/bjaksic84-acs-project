@@ -1,0 +1,37 @@
+# feature: apply-verify
+# level: basic
+# tier: 1
+# title: a failing verify command rolls everything back and exits 3
+
+[!net] skip 'needs the network: apply runs go get'
+
+fixture shop
+cd shop
+exec flagwire init
+cp ../flagwire.toml flagwire.toml
+gitinit
+exec flagwire propose --no-llm
+! exec flagwire apply admin
+exitcode 3
+stderr '^flagwire: verification failed: false$'
+
+cmp internal/web/routes.go $FIXTURES/shop/internal/web/routes.go
+cmp cmd/shop/main.go $FIXTURES/shop/cmd/shop/main.go
+cmp go.mod $FIXTURES/shop/go.mod
+! exists go.sum
+! exists internal/flags
+exec git status --porcelain
+! stdout .
+exec git branch --list
+! stdout flagwire
+
+-- flagwire.toml --
+module = "example.com/shop"
+flags_package = "internal/flags"
+manifest = "flags.json"
+providers = ["env"]
+env_prefix = "FLAG_"
+flagd_file = "flags.flagd.json"
+
+[verify]
+commands = ["go build ./...", "false"]
